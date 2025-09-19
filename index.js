@@ -47,6 +47,41 @@ app.post('/register', async (req, res) => {
   }
 });
 
+// -- USER LOGIN ENDPOINT --
+app.post('/login', async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email and password are required.' });
+  }
+
+  try {
+    // Find the user by email
+    const { data: users, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email);
+
+    if (error || users.length === 0) {
+      return res.status(401).json({ error: 'Invalid credentials.' });
+    }
+
+    const user = users[0];
+
+    // Compare the provided password with the stored hash
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordValid) {
+      return res.status(401).json({ error: 'Invalid credentials.' });
+    }
+
+    res.status(200).json({ message: 'Login successful.', user: { id: user.id, email: user.email } });
+  } catch (err) {
+    console.error('Server error:', err);
+    res.status(500).json({ error: 'An unexpected error occurred.' });
+  }
+});
+
 // 5. Start the server
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
