@@ -1,18 +1,53 @@
-// 1. Import the Express library
+// 1. Import Dependencies
 const express = require('express');
+const supabase = require('./supabaseClient'); // Import our supabase connection
+const bcrypt = require('bcryptjs');
 
 // 2. Create an instance of the Express app
 const app = express();
+app.use(express.json()); // Middleware to parse JSON bodies
 
-// 3. Define the port number our server will run on
+// 3. Define the port number
 const PORT = 3001;
 
-// 4. Create a "route" to handle incoming requests
+// 4. Create API routes
 app.get('/', (req, res) => {
   res.send('Welcome to the Soft Life Finances API!');
 });
 
-// 5. Start the server and listen for connections on the port
+// -- USER REGISTRATION ENDPOINT --
+app.post('/register', async (req, res) => {
+  const { email, password } = req.body;
+
+  // Basic validation
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email and password are required.' });
+  }
+
+  try {
+    // Hash the password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    // Insert user into the database
+    const { data, error } = await supabase
+      .from('users')
+      .insert([{ email, password: hashedPassword }])
+      .select();
+
+    if (error) {
+      console.error('Supabase error:', error);
+      return res.status(500).json({ error: 'Could not create user.' });
+    }
+
+    res.status(201).json({ message: 'User created successfully.', user: data[0] });
+  } catch (err) {
+    console.error('Server error:', err);
+    res.status(500).json({ error: 'An unexpected error occurred.' });
+  }
+});
+
+// 5. Start the server
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });
